@@ -1,0 +1,23 @@
+project_name: libzip
+static_lib_name: libzip.a
+dyn_lib_name: libzip.so
+null_term: false
+landmark: true
+desc: "libzip is a C library for reading, creating, and modifying zip archives."
+# Additional options that might be useful for libzip
+# ban:
+#   - zip_source_function
+extra_c_flags:
+  - "-DZIP_STATIC"
+  - "-I/usr/include/openssl"
+fuzz_fork: true
+rss_limit_mb: 2048
+# Dependencies required for libzip
+# These would be linked during compilation
+extra_libs:
+  - "-lbz2"
+  - "-llzma"
+  - "-lz"
+  - "-lzstd"
+  - "-lssl"
+  - "-lcrypto" 
