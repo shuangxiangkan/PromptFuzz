@@ -29,6 +29,9 @@ function build_lib() {
     cd $LIB_STORE_DIR
     # 添加缺失的依赖库安装
     apt-get install -y libbz2-dev liblzma-dev libzstd-dev
+
+    # First build static library
+    mkdir -p static && cd static
     cmake -DBUILD_SHARED_LIBS=OFF \
           -DENABLE_GNUTLS=OFF \
           -DENABLE_MBEDTLS=OFF \
@@ -37,10 +40,23 @@ function build_lib() {
           -DHAVE_CRYPTO=ON \
           $SRC/libzip
     make -j$(nproc)
-    
-    # 添加：复制库文件到当前目录
-    cp lib/libzip.a .
-    cp lib/libzip.so . 2>/dev/null || true  # 如果有动态库也复制
+    cp lib/libzip.a ..
+    cp config.h ../../
+    cp lib/zipconf.h ../
+    cd ..
+
+    # Then build shared library
+    mkdir -p shared && cd shared
+    cmake -DBUILD_SHARED_LIBS=ON \
+          -DENABLE_GNUTLS=OFF \
+          -DENABLE_MBEDTLS=OFF \
+          -DENABLE_OPENSSL=ON \
+          -DBUILD_TOOLS=OFF \
+          -DHAVE_CRYPTO=ON \
+          $SRC/libzip
+    make -j$(nproc)
+    cp lib/libzip.so ..
+    cd ..
 }
 
 function build_oss_fuzz() {
@@ -51,6 +67,7 @@ function build_oss_fuzz() {
     do
         echo "Building fuzzer: $fuzzer"
         $CC $CFLAGS -I. -I$SRC/libzip/lib \
+            -I${LIB_STORE_DIR}/shared/ \
             $SRC/libzip/ossfuzz/$fuzzer.c \
             -o $OUT/$fuzzer \
             $LIB_FUZZING_ENGINE ${LIB_STORE_DIR}/libzip.a \
@@ -63,6 +80,8 @@ function copy_include() {
     mkdir -p ${LIB_BUILD}/include
     # 复制源码中的zip.h
     cp ${SRC}/${PROJECT_NAME}/lib/zip.h ${LIB_BUILD}/include/
+    # 复制编译生成的zipconf.h (从static或shared目录都可以，因为内容相同)
+    cp ${LIB_STORE_DIR}/shared/zipconf.h ${LIB_BUILD}/include/
 }
 
 function build_corpus() {
